@@ -31,7 +31,7 @@ repositories {
 
 tasks {
     withType<Wrapper> {
-        gradleVersion = "6.3"
+        gradleVersion = "6.5"
         distributionType = Wrapper.DistributionType.ALL
     }
 }

