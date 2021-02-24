@@ -2,8 +2,8 @@ version = "1.0-SNAPSHOT"
 
 plugins {
     idea
-    kotlin("multiplatform") version "1.3.72"
-    id("org.jlleitschuh.gradle.ktlint") version "9.2.1"
+    kotlin("multiplatform") version "1.4.30"
+    id("org.jlleitschuh.gradle.ktlint") version "10.0.0"
 }
 
 kotlin {
@@ -31,7 +31,7 @@ repositories {
 
 tasks {
     withType<Wrapper> {
-        gradleVersion = "6.5"
+        gradleVersion = "6.8.2"
         distributionType = Wrapper.DistributionType.ALL
     }
 }

