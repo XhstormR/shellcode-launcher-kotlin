@@ -20,6 +20,7 @@ kotlin {
         binaries {
             executable {
                 entryPoint = "com.xhstormr.app.main"
+                linkerOpts("-mwindows")
             }
         }
     }

